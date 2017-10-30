@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%date{"yyyy-MM-dd'T'HH:mm:ss.SSSXXX", UTC} %logger{60.60} [%level] %replace(%message){"\n", "
+ "}%replace(%xException){"\n", "
+ "}%nopex%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+      <file>logs/twitter-ingest.log</file>
+      <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+        <fileNamePattern>logs/${HOSTNAME}-twitter-ingest-%d{yyyyMMdd}.%i.log.gz</fileNamePattern>
+        <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+          <maxFileSize>200MB</maxFileSize>
+        </timeBasedFileNamingAndTriggeringPolicy>
+      </rollingPolicy>
+      <encoder>
+        <pattern>%date{"yyyy-MM-dd'T'HH:mm:ss.SSSXXX", UTC} %logger{60.60} [%level] %replace(%message){"\n", "
+ "}%replace(%xException){"\n", "
+ "}%nopex%n</pattern>
+      </encoder>
+    </appender>
+
+    <logger name="net.qns.delphinus" level="${LOG_LEVEL:-debug}" />
+    <logger name="org" level="${LOG_LEVEL:-info}" />
+    <logger name="com" level="${LOG_LEVEL:-info}" />
+    <logger name="io" level="${LOG_LEVEL:-info}" />
+    <logger name="org.spark_project" level="${LOG_LEVEL:-warn}" />
+    <logger name="org.apache.spark" level="${LOG_LEVEL:-warn}" />
+    <logger name="org.apache.spark.storage" level="${LOG_LEVEL:-error}" />
+
+    <root level="${ROOT_LOG_LEVEL:-info}">
+      <appender-ref ref="STDOUT" />
+    </root>
+</configuration>
