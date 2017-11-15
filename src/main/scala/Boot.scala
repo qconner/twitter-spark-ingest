@@ -37,7 +37,8 @@ object Boot extends App with StrictLogging {
     val config = ConfigFactory.parseFile(new File("environment.conf")).withFallback(baseConfig)
 
     // twitter API 
-    configureTwitter(config.getConfig("twitter"))
+    val twitterConf = config.getConfig("twitter")
+    configureTwitter(twitterConf)
 
     // keyword filters
     val filters = config.getConfig("filter").getStringList("keywords").toList
@@ -46,7 +47,7 @@ object Boot extends App with StrictLogging {
 
     // RRD batch period in secs
     val ssPeriod = config.getConfig("spark").getInt("period-in-secs")
-    val (ssc, stream) = twitterStream(filters, ssPeriod)
+    val (ssc, stream) = twitterStream(twitterConf, filters, ssPeriod)
 
     // extract text from Tweet (Twitter status update)
     val tweets: DStream[String] = stream map { x =>
@@ -59,10 +60,17 @@ object Boot extends App with StrictLogging {
     
       // split tweet on whitespace
       val words: Array[String] = x.getText.split("\\s+")
-      
+
+      //
       // keep words starting with #
-      // and convert to lower case
-      words.filter(_.startsWith("#")).map(_.toLowerCase.trim)
+      // but convert to lower case
+      // and drop trailing punctuation (e.g. comma)
+      // and drop trailing ellipsis (...)
+      //
+      val raw = words.filter(_.startsWith("#"))
+      val cooked = raw.map(_.trim.toLowerCase.replaceAll("""[\p{Punct}\u2026]+$""", ""))
+      // filter out empty strings
+      cooked.filter(_.size > 0)
     }
 
     // tweet occurrences
@@ -77,7 +85,10 @@ object Boot extends App with StrictLogging {
     // print item counts
     tweetCount foreachRDD { rdd: RDD[Int] =>
       rdd.collect.size match {
-        case x if (x > 0) => print("\n%d tweets" format rdd.collect.head)
+        case x if (x > 0) =>
+          val n = rdd.collect.head
+          print("\n%d tweets".format(n) + " (%.1f/sec)".format(n.toDouble / ssPeriod) + " (%.1f/min)".format(n.toDouble / ssPeriod * 60.0))
+        case _ =>
       }
     }
     hashtagCount foreachRDD { rdd: RDD[Int] =>
@@ -95,7 +106,8 @@ object Boot extends App with StrictLogging {
       println("TOP %d hashtags out of %d unique:" format (N, rdd.collect.size)) 
 
       rdd.sortBy(_._2, false).collect take N foreach {
-        case (tag, count) => println(s"${tag}: ${count}")
+        case (tag, count) =>
+        println("%3d  %s" format (count, tag))
       }
       println
     }
@@ -117,9 +129,13 @@ object Boot extends App with StrictLogging {
   }
 
   // return a Spark Streaming Context and Spark DStream of tweets
-  def twitterStream(filters: List[String], period: Int): (StreamingContext, InputDStream[twitter4j.Status]) = {
+  def twitterStream(conf: Config, filters: List[String], period: Int): (StreamingContext, InputDStream[twitter4j.Status]) = {
     logger.debug("creating Spark context")
-    val sc = new SparkConf().setAppName("Twitter Ingest").setMaster("local[4]")
+
+    val sc = new SparkConf()
+        .setAppName("Twitter Ingest")
+        .setMaster("local[4]")
+        .set("spark.streaming.receiverRestartDelay", conf.getString("stream-restart-delay-in-msec"))
     logger.debug(sc.toDebugString)
 
     val ssc = new StreamingContext(sc, Seconds(period))
