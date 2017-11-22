@@ -13,14 +13,14 @@ in order to run.
 
 Create an environment.conf in the top-level directory
 (where you will run the Spark Driver from)
-or edit your **src/main/resources/application.conf** file.
+or edit your src/main/resources/application.conf file.
 Fill in your Twitter-provided consumer-api-key,
 consumer-secret, access-token and access-token-secret.
 
 Put your Twitter account credentials in place of
 w, x, y and z.
 
-```
+```bash
 twitter {
   consumer-api-key = "wwwwwwwwwwwwwwwwwwwwwwwww"
   consumer-secret = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
@@ -36,18 +36,31 @@ where Spark 2.2.x is already installed.  This is true whether
 you want to run the Spark Job locally or you want it run
 in a distributed manner on a Mesos or Yarn Cluster.
 
+Configure your Spark installation by editing \${SPARK_HOME}/conf/spark-defaults.conf
+and setting spark.executor.uri at a minimum.  You may also want to edit
+\${SPARK_HOME}/conf/spark-env.sh setting MESOS_NATIVE_JAVA_LIBRARY and
+SPARK_EXECUTOR_URI environment variables.
+
+### Compile
+
+```bash
+sbt compile
+sbt assembly
+```
+
 ### Run Locally
 
-```
-sbt assembly
-spark-deploy target/scala-2.11/TwitterIngest-assembly-0.1.0-SNAPSHOT.jar
+```bash
+spark-submit target/scala-2.11/TwitterIngest-assembly-0.1.0-SNAPSHOT.jar 2> local.log
 ```
 
 ### Submit to a Mesos Cluster
 
-```
-sbt assembly
-spark-submit --master mesos://master:5050 target/scala-2.11/TwitterIngest-assembly-0.1.0-SNAPSHOT.jar 2> ingest.log
+Replace master in the following with your Mesos Cluster Master hostname.
+
+```bash
+spark-submit --master mesos://master:5050 target/scala-2.11/TwitterIngest-assembly-0.1.0-SNAPSHOT.jar 2> cluster.log
 ```
 
-Look at ingest.log if you don't get a Top 10 list of hashtags within a minute.
+Look at your *.log file if you don't see a Top 10 list of hashtags within a minute.
+Log4J writes to stderr by default.
