@@ -134,7 +134,6 @@ object Boot extends App with StrictLogging {
 
     val sc = new SparkConf()
         .setAppName("Twitter Ingest")
-        .setMaster("local[4]")
         .set("spark.streaming.receiverRestartDelay", conf.getString("stream-restart-delay-in-msec"))
     logger.debug(sc.toDebugString)
 
